@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <section class="hero-card compact">
+    <div>
+      <p class="eyebrow">Secure Portal</p>
+      <h1>{{ title }}</h1>
+      <p class="hero-copy">{{ subtitle }}</p>
+    </div>
+    <div class="single-metric">
+      <span>{{ highlight_label }}</span>
+      <strong>{{ highlight_value }}</strong>
+    </div>
+  </section>
+
+  {% for section in sections %}
+    <section class="panel">
+      <div class="panel-header">
+        <h3>{{ section.title }}</h3>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              {% for column in section.columns %}
+                <th>{{ column }}</th>
+              {% endfor %}
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in section.rows %}
+              <tr>
+                {% for cell in row %}
+                  <td>{{ cell }}</td>
+                {% endfor %}
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  {% endfor %}
+{% endblock %}

@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <section class="section-head">
+    <div>
+      <p class="eyebrow">Appointments</p>
+      <h2>Schedule a patient visit</h2>
+    </div>
+  </section>
+
+  <section class="form-panel">
+    <form method="post" class="form-grid">
+      <select name="patient_id" required>
+        <option value="">Select patient</option>
+        {% for patient in patients %}
+          <option value="{{ patient.id }}">{{ patient.full_name }}</option>
+        {% endfor %}
+      </select>
+      <select name="doctor_id" required>
+        <option value="">Select doctor</option>
+        {% for doctor in doctors %}
+          <option value="{{ doctor.id }}">{{ doctor.full_name }} - {{ doctor.department }}</option>
+        {% endfor %}
+      </select>
+      <input type="datetime-local" name="appointment_time" required />
+      <select name="status" required>
+        <option>Scheduled</option>
+        <option>Completed</option>
+        <option>Cancelled</option>
+      </select>
+      <input type="text" name="notes" placeholder="Notes" />
+      <button type="submit">Book appointment</button>
+    </form>
+  </section>
+
+  <section class="panel">
+    <div class="panel-header">
+      <h3>Appointment List</h3>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Patient</th>
+            <th>Doctor</th>
+            <th>Date & Time</th>
+            <th>Status</th>
+            <th>Notes</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for appointment in appointments %}
+            <tr>
+              <td>{{ appointment.patient.full_name }}</td>
+              <td>{{ appointment.doctor.full_name }}</td>
+              <td>{{ appointment.appointment_time.strftime("%d %b %Y, %I:%M %p") }}</td>
+              <td>{{ appointment.status }}</td>
+              <td>{{ appointment.notes or "-" }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+{% endblock %}

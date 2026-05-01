@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <section class="section-head">
+    <div>
+      <p class="eyebrow">Doctors</p>
+      <h2>Doctor information</h2>
+    </div>
+  </section>
+
+  <section class="form-panel">
+    <form method="post" class="form-grid">
+      <input type="text" name="full_name" placeholder="Doctor name" required />
+      <input type="text" name="department" placeholder="Department" required />
+      <input
+        type="number"
+        name="experience_years"
+        placeholder="Experience (years)"
+        required
+      />
+      <input type="text" name="phone" placeholder="Phone number" required />
+      <input type="text" name="availability" placeholder="Availability" required />
+      <button type="submit">Add doctor</button>
+    </form>
+  </section>
+
+  <section class="panel">
+    <div class="panel-header">
+      <h3>Doctor Directory</h3>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Department</th>
+            <th>Experience</th>
+            <th>Phone</th>
+            <th>Availability</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for doctor in doctors %}
+            <tr>
+              <td>{{ doctor.full_name }}</td>
+              <td>{{ doctor.department }}</td>
+              <td>{{ doctor.experience_years }} years</td>
+              <td>{{ doctor.phone }}</td>
+              <td>{{ doctor.availability }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+{% endblock %}

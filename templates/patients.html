@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <section class="section-head">
+    <div>
+      <p class="eyebrow">Patients</p>
+      <h2>Patient registration</h2>
+    </div>
+  </section>
+
+  <section class="form-panel">
+    <form method="post" class="form-grid">
+      <input type="text" name="full_name" placeholder="Full name" required />
+      <input type="number" name="age" placeholder="Age" required />
+      <select name="gender" required>
+        <option value="">Gender</option>
+        <option>Male</option>
+        <option>Female</option>
+        <option>Other</option>
+      </select>
+      <input type="text" name="phone" placeholder="Phone number" required />
+      <input type="text" name="disease" placeholder="Disease / Diagnosis" required />
+      <input type="date" name="admitted_on" required />
+      <button type="submit">Add patient</button>
+    </form>
+  </section>
+
+  <section class="panel">
+    <div class="panel-header">
+      <h3>Patient Records</h3>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Age</th>
+            <th>Gender</th>
+            <th>Phone</th>
+            <th>Disease</th>
+            <th>Admitted On</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for patient in patients %}
+            <tr>
+              <td>{{ patient.full_name }}</td>
+              <td>{{ patient.age }}</td>
+              <td>{{ patient.gender }}</td>
+              <td>{{ patient.phone }}</td>
+              <td>{{ patient.disease }}</td>
+              <td>{{ patient.admitted_on.strftime("%d %b %Y") }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+{% endblock %}

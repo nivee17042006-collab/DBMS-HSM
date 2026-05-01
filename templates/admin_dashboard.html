@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <section class="hero-card compact">
+    <div>
+      <p class="eyebrow">Admin</p>
+      <h1>Central dashboard access</h1>
+      <p class="hero-copy">
+        Admin sees overall hospital activity, emergency admissions, pharmacy approvals,
+        and security alerts.
+      </p>
+    </div>
+    <div class="metric-grid">
+      <article class="metric-tile"><span>Patients</span><strong>{{ snapshot.patients }}</strong></article>
+      <article class="metric-tile"><span>Doctors</span><strong>{{ snapshot.doctors }}</strong></article>
+      <article class="metric-tile"><span>Emergency</span><strong>{{ snapshot.emergency_cases }}</strong></article>
+      <article class="metric-tile"><span>Alerts</span><strong>{{ snapshot.critical_alerts }}</strong></article>
+    </div>
+  </section>
+
+  <section class="panel-grid">
+    <article class="panel">
+      <div class="panel-header">
+        <h3>Emergency Patients</h3>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Patient</th>
+              <th>Ward</th>
+              <th>Registered By</th>
+              <th>Admission Type</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for patient in emergency_patients %}
+              <tr>
+                <td>{{ patient.full_name }}</td>
+                <td>{{ patient.ward }}</td>
+                <td>{{ patient.registered_by }}</td>
+                <td>{{ patient.admission_type }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </article>
+
+    <article class="panel">
+      <div class="panel-header">
+        <h3>Pharmacy Approval Queue</h3>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Medicine</th>
+              <th>Balance</th>
+              <th>Approval</th>
+              <th>Order</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in pharmacy_waiting %}
+              <tr>
+                <td>{{ item.medicine_name }}</td>
+                <td>{{ item.balance_units }}</td>
+                <td>{{ item.approval_status }}</td>
+                <td>{{ item.order_status }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </article>
+  </section>
+
+  <section class="panel">
+    <div class="panel-header">
+      <h3>Security And Operations Summary</h3>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Module</th>
+            <th>Status</th>
+            <th>Owner</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>Staff two-layer login</td><td>Enabled</td><td>Admin</td></tr>
+          <tr><td>Patient self-registration</td><td>Enabled</td><td>Front Desk</td></tr>
+          <tr><td>Emergency registration</td><td>Admin / Receptionist</td><td>Front Desk</td></tr>
+          <tr><td>Pharmacy restock approvals</td><td>Admin approval required</td><td>Pharmacy</td></tr>
+          <tr><td>Infant band security</td><td>Active monitoring</td><td>Technical Team</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+{% endblock %}

@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <section class="hero">
+    <div>
+      <p class="eyebrow">Overview</p>
+      <h2>Hospital operations at a glance</h2>
+      <p>
+        This web application is based on your DBMS record idea and models the
+        core hospital workflow with a connected database.
+      </p>
+    </div>
+  </section>
+
+  <section class="stats-grid">
+    <article class="stat-card">
+      <span>Total Patients</span>
+      <strong>{{ totals.patients }}</strong>
+    </article>
+    <article class="stat-card">
+      <span>Total Doctors</span>
+      <strong>{{ totals.doctors }}</strong>
+    </article>
+    <article class="stat-card">
+      <span>Appointments</span>
+      <strong>{{ totals.appointments }}</strong>
+    </article>
+    <article class="stat-card">
+      <span>Total Billing</span>
+      <strong>Rs. {{ "%.2f"|format(totals.revenue) }}</strong>
+    </article>
+  </section>
+
+  <section class="panel-grid">
+    <article class="panel">
+      <div class="panel-header">
+        <h3>Upcoming Appointments</h3>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Patient</th>
+              <th>Doctor</th>
+              <th>Date & Time</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for appointment in recent_appointments %}
+              <tr>
+                <td>{{ appointment.patient.full_name }}</td>
+                <td>{{ appointment.doctor.full_name }}</td>
+                <td>{{ appointment.appointment_time.strftime("%d %b %Y, %I:%M %p") }}</td>
+                <td>{{ appointment.status }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </article>
+
+    <article class="panel">
+      <div class="panel-header">
+        <h3>Pending Bills</h3>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Patient</th>
+              <th>Description</th>
+              <th>Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for bill in pending_bills %}
+              <tr>
+                <td>{{ bill.patient.full_name }}</td>
+                <td>{{ bill.description }}</td>
+                <td>Rs. {{ "%.2f"|format(bill.amount) }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </article>
+  </section>
+{% endblock %}
