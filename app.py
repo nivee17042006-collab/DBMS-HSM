@@ -38,7 +38,7 @@ app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
 db = SQLAlchemy(app)
 
-SQL_IMPORT_PATH = Path(r"C:\Users\nivee\Downloads\all_staff_inserts.sql")
+SQL_IMPORT_PATH =Path(__file__).resolve().parent / "hms_batch4_dataset.sql"
 USER_INSERT_RE = re.compile(
     r"INSERT INTO users \(username, password, role\) VALUES \('([^']*)', '([^']*)', '([^']*)'\);"
 )
