@@ -6,13 +6,15 @@ from datetime import date, datetime
 from pathlib import Path
 from urllib.parse import quote_plus
 
-from flask import Flask, flash, redirect, render_template, request, url_for, session
+from flask import Flask, flash, redirect, render_template, request, session, url_for
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy.pool import StaticPool
+from sqlalchemy import text
 
 
 app = Flask(__name__)
 app.config["SECRET_KEY"] = "hospital-management-demo"
+
+APP_DIR = Path(__file__).resolve().parent
 database_url = os.getenv("DATABASE_URL")
 mysql_host = os.getenv("MYSQL_HOST")
 using_mysql = bool(database_url or mysql_host)
@@ -29,16 +31,17 @@ elif mysql_host:
         f"{mysql_host}:{mysql_port}/{mysql_database}"
     )
 else:
-    app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite://"
+    sqlite_path = APP_DIR / "securecare_hms.db"
+    app.config["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{sqlite_path.as_posix()}"
     app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
-        "connect_args": {"check_same_thread": False},
-        "poolclass": StaticPool,
+        "connect_args": {"check_same_thread": False}
     }
-app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
+app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 db = SQLAlchemy(app)
 
-SQL_IMPORT_PATH =Path(__file__).resolve().parent / "hms_batch4_dataset.sql"
+SQL_IMPORT_PATH = APP_DIR / "hms_batch4_dataset.sql"
+
 USER_INSERT_RE = re.compile(
     r"INSERT INTO users \(username, password, role\) VALUES \('([^']*)', '([^']*)', '([^']*)'\);"
 )
@@ -48,12 +51,14 @@ ACCESS_INSERT_RE = re.compile(
 
 
 class Patient(db.Model):
+    __tablename__ = "patients"
+
     id = db.Column(db.Integer, primary_key=True)
     full_name = db.Column(db.String(120), nullable=False)
     age = db.Column(db.Integer, nullable=False)
     gender = db.Column(db.String(20), nullable=False)
     phone = db.Column(db.String(20), nullable=False)
-    condition = db.Column(db.String(120), nullable=False)
+    condition = db.Column("patient_condition", db.String(120), nullable=False)
     ward = db.Column(db.String(60), nullable=False)
     admission_type = db.Column(db.String(40), nullable=False)
     registered_by = db.Column(db.String(40), nullable=False)
@@ -62,6 +67,8 @@ class Patient(db.Model):
 
 
 class Doctor(db.Model):
+    __tablename__ = "doctors"
+
     id = db.Column(db.Integer, primary_key=True)
     full_name = db.Column(db.String(120), nullable=False)
     department = db.Column(db.String(80), nullable=False)
@@ -70,6 +77,8 @@ class Doctor(db.Model):
 
 
 class StaffUser(db.Model):
+    __tablename__ = "staff_users"
+
     id = db.Column(db.Integer, primary_key=True)
     full_name = db.Column(db.String(120), nullable=False)
     role = db.Column(db.String(40), nullable=False)
@@ -82,16 +91,20 @@ class StaffUser(db.Model):
 
 
 class WardAssignment(db.Model):
+    __tablename__ = "ward_assignments"
+
     id = db.Column(db.Integer, primary_key=True)
     patient_name = db.Column(db.String(120), nullable=False)
     doctor_name = db.Column(db.String(120), nullable=False)
     nurse_name = db.Column(db.String(120), nullable=False)
     ward_name = db.Column(db.String(60), nullable=False)
     room_number = db.Column(db.String(20), nullable=False)
-    schedule = db.Column(db.String(80), nullable=False)
+    schedule = db.Column("schedule_note", db.String(80), nullable=False)
 
 
 class Prescription(db.Model):
+    __tablename__ = "prescriptions"
+
     id = db.Column(db.Integer, primary_key=True)
     patient_name = db.Column(db.String(120), nullable=False)
     doctor_name = db.Column(db.String(120), nullable=False)
@@ -102,6 +115,8 @@ class Prescription(db.Model):
 
 
 class PharmacyStock(db.Model):
+    __tablename__ = "pharmacy_stock"
+
     id = db.Column(db.Integer, primary_key=True)
     medicine_name = db.Column(db.String(120), nullable=False)
     stock_in = db.Column(db.Integer, nullable=False, default=0)
@@ -114,6 +129,8 @@ class PharmacyStock(db.Model):
 
 
 class IotBandMonitor(db.Model):
+    __tablename__ = "iot_band_monitor"
+
     id = db.Column(db.Integer, primary_key=True)
     patient_name = db.Column(db.String(120), nullable=False)
     band_code = db.Column(db.String(60), nullable=False)
@@ -126,6 +143,8 @@ class IotBandMonitor(db.Model):
 
 
 class InfantSecurity(db.Model):
+    __tablename__ = "infant_security"
+
     id = db.Column(db.Integer, primary_key=True)
     infant_name = db.Column(db.String(120), nullable=False)
     mother_name = db.Column(db.String(120), nullable=False)
@@ -139,7 +158,9 @@ class InfantSecurity(db.Model):
 def prettify_username(username: str, role: str) -> str:
     if username == "admin_root":
         return "Admin Root"
+
     pieces = [piece for piece in username.split("_") if piece]
+
     if role.lower() == "doctor" and pieces and pieces[0] == "dr":
         return "Dr. " + " ".join(part.capitalize() for part in pieces[1:])
     if role.lower() == "nurse" and pieces and pieces[0] == "nurse":
@@ -148,6 +169,7 @@ def prettify_username(username: str, role: str) -> str:
         return " ".join(part.capitalize() for part in pieces[1:])
     if pieces and pieces[0] == "clean":
         return "Cleaner " + " ".join(part.capitalize() for part in pieces[1:])
+
     return " ".join(part.capitalize() for part in pieces)
 
 
@@ -162,16 +184,12 @@ def parse_staff_sql() -> list[dict]:
         user_match = USER_INSERT_RE.search(line)
         if user_match:
             username, password, role = user_match.groups()
-            if username == "---":
-                continue
             user_rows[username] = {"password": password, "role": role}
             continue
 
         access_match = ACCESS_INSERT_RE.search(line)
         if access_match:
             username, biothumb_id, department = access_match.groups()
-            if username == "---":
-                continue
             access_rows[username] = {
                 "security_pin": biothumb_id,
                 "department": department,
@@ -197,147 +215,202 @@ def parse_staff_sql() -> list[dict]:
     return records
 
 
-def seed_data() -> None:
-    if Patient.query.first():
-        return
+def execute_proc_one(proc_sql: str, params: dict):
+    result = db.session.execute(text(proc_sql), params)
+    return result.mappings().first()
 
+
+def seed_data() -> None:
     imported_staff = parse_staff_sql()
     doctor_rows = [row for row in imported_staff if row["role"] == "Doctor"]
 
-    db.session.add_all(
-        [
-            Patient(
-                full_name="Kaviya Raj",
-                age=29,
-                gender="Female",
-                phone="9876543210",
-                condition="Post-surgery recovery",
-                ward="Ward A",
-                admission_type="Inpatient",
-                registered_by="Admin",
-                emergency_case=False,
-                admitted_on=date(2026, 4, 14),
-            ),
-            Patient(
-                full_name="Arjun Kumar",
-                age=41,
-                gender="Male",
-                phone="9789012345",
-                condition="Cardiac observation",
-                ward="ICU 2",
-                admission_type="Emergency",
-                registered_by="Receptionist",
-                emergency_case=True,
-                admitted_on=date(2026, 4, 15),
-            ),
-            WardAssignment(
-                patient_name="Arjun Kumar",
-                doctor_name="Dr. Arjun",
-                nurse_name="Nurse Deepa",
-                ward_name="ICU 2",
-                room_number="ICU-08",
-                schedule="Vitals every 2 hours",
-            ),
-            WardAssignment(
-                patient_name="Kaviya Raj",
-                doctor_name="Dr. Sneha",
-                nurse_name="Nurse Kavi",
-                ward_name="Ward A",
-                room_number="A-12",
-                schedule="Morning and evening rounds",
-            ),
-            Prescription(
-                patient_name="Arjun Kumar",
-                doctor_name="Dr. Arjun",
-                nurse_name="Nurse Deepa",
-                medicines="Aspirin, Atorvastatin",
-                dosage="1-0-1 for 5 days",
-                prescribed_on=date(2026, 4, 15),
-            ),
-            Prescription(
-                patient_name="Kaviya Raj",
-                doctor_name="Dr. Sneha",
-                nurse_name="Nurse Kavi",
-                medicines="Paracetamol, Cefixime",
-                dosage="1-1-1 after food",
-                prescribed_on=date(2026, 4, 16),
-            ),
-            PharmacyStock(
-                medicine_name="Aspirin",
-                stock_in=100,
-                stock_out=24,
-                balance_units=76,
-                prescribed_to="Arjun Kumar",
-                prescribed_by="Dr. Arjun",
-                approval_status="Approved by Admin",
-                order_status="In stock",
-            ),
-            PharmacyStock(
-                medicine_name="Infant Vitamin Drops",
-                stock_in=20,
-                stock_out=18,
-                balance_units=2,
-                prescribed_to="NICU",
-                prescribed_by="Dr. Sneha",
-                approval_status="Awaiting Admin Approval",
-                order_status="Restock requested",
-            ),
-            IotBandMonitor(
-                patient_name="Arjun Kumar",
-                band_code="IOT-ARJ-2201",
-                anomaly="Irregular heart rate detected",
-                heart_rate=122,
-                spo2=93,
-                temperature=99.4,
-                monitored_by="Staff Karthik",
-                last_sync="16 Apr 2026, 08:45 AM",
-            ),
-            IotBandMonitor(
-                patient_name="Kaviya Raj",
-                band_code="IOT-KAV-1140",
-                anomaly="No anomaly",
-                heart_rate=82,
-                spo2=98,
-                temperature=98.4,
-                monitored_by="Staff Karthik",
-                last_sync="16 Apr 2026, 08:50 AM",
-            ),
-            InfantSecurity(
-                infant_name="Baby Diya",
-                mother_name="Meena S",
-                pair_code="MOM-INF-9088",
-                authorized_members="Mother, Dr. Sneha, Nurse Kavi",
-                alarm_status="Protected",
-                alert_targets="Reception, Doctor, Nurse",
-                technical_team="Staff Karthik",
-            ),
-            InfantSecurity(
-                infant_name="Baby Keshav",
-                mother_name="Anu K",
-                pair_code="MOM-INF-9011",
-                authorized_members="Mother, NICU doctor, Assigned nurse",
-                alarm_status="Band tamper alert test enabled",
-                alert_targets="Reception, NICU Desk, Nurse Station",
-                technical_team="Staff Karthik",
-            ),
-        ]
-    )
-    db.session.add_all(
-        [
-            Doctor(
-                full_name=row["full_name"],
-                department=row["department"],
-                availability="Mon-Sat, 9 AM - 5 PM",
-                assigned_ward=row["department"],
-            )
-            for row in doctor_rows
-        ]
-    )
-    db.session.add_all([StaffUser(**row) for row in imported_staff])
+    if StaffUser.query.count() == 0 and imported_staff:
+        db.session.add_all([StaffUser(**row) for row in imported_staff])
+
+    if Doctor.query.count() == 0 and doctor_rows:
+        db.session.add_all(
+            [
+                Doctor(
+                    full_name=row["full_name"],
+                    department=row["department"],
+                    availability="Mon-Sat, 9 AM - 5 PM",
+                    assigned_ward=row["department"],
+                )
+                for row in doctor_rows
+            ]
+        )
+
+    if Patient.query.count() == 0:
+        db.session.add_all(
+            [
+                Patient(
+                    full_name="Kaviya Raj",
+                    age=29,
+                    gender="Female",
+                    phone="9876543210",
+                    condition="Post-surgery recovery",
+                    ward="Ward A",
+                    admission_type="Inpatient",
+                    registered_by="Admin",
+                    emergency_case=False,
+                    admitted_on=date(2026, 4, 14),
+                ),
+                Patient(
+                    full_name="Arjun Kumar",
+                    age=41,
+                    gender="Male",
+                    phone="9789012345",
+                    condition="Cardiac observation",
+                    ward="ICU 2",
+                    admission_type="Emergency",
+                    registered_by="Receptionist",
+                    emergency_case=True,
+                    admitted_on=date(2026, 4, 15),
+                ),
+            ]
+        )
+
+    if WardAssignment.query.count() == 0:
+        db.session.add_all(
+            [
+                WardAssignment(
+                    patient_name="Arjun Kumar",
+                    doctor_name="Dr. Arjun",
+                    nurse_name="Nurse Deepa",
+                    ward_name="ICU 2",
+                    room_number="ICU-08",
+                    schedule="Vitals every 2 hours",
+                ),
+                WardAssignment(
+                    patient_name="Kaviya Raj",
+                    doctor_name="Dr. Sneha",
+                    nurse_name="Nurse Kavi",
+                    ward_name="Ward A",
+                    room_number="A-12",
+                    schedule="Morning and evening rounds",
+                ),
+            ]
+        )
+
+    if Prescription.query.count() == 0:
+        db.session.add_all(
+            [
+                Prescription(
+                    patient_name="Arjun Kumar",
+                    doctor_name="Dr. Arjun",
+                    nurse_name="Nurse Deepa",
+                    medicines="Aspirin, Atorvastatin",
+                    dosage="1-0-1 for 5 days",
+                    prescribed_on=date(2026, 4, 15),
+                ),
+                Prescription(
+                    patient_name="Kaviya Raj",
+                    doctor_name="Dr. Sneha",
+                    nurse_name="Nurse Kavi",
+                    medicines="Paracetamol, Cefixime",
+                    dosage="1-1-1 after food",
+                    prescribed_on=date(2026, 4, 16),
+                ),
+            ]
+        )
+
+    if PharmacyStock.query.count() == 0:
+        db.session.add_all(
+            [
+                PharmacyStock(
+                    medicine_name="Aspirin",
+                    stock_in=100,
+                    stock_out=24,
+                    balance_units=76,
+                    prescribed_to="Arjun Kumar",
+                    prescribed_by="Dr. Arjun",
+                    approval_status="Approved by Admin",
+                    order_status="In stock",
+                ),
+                PharmacyStock(
+                    medicine_name="Infant Vitamin Drops",
+                    stock_in=20,
+                    stock_out=18,
+                    balance_units=2,
+                    prescribed_to="NICU",
+                    prescribed_by="Dr. Sneha",
+                    approval_status="Awaiting Admin Approval",
+                    order_status="Restock requested",
+                ),
+            ]
+        )
+
+    if IotBandMonitor.query.count() == 0:
+        db.session.add_all(
+            [
+                IotBandMonitor(
+                    patient_name="Arjun Kumar",
+                    band_code="IOT-ARJ-2201",
+                    anomaly="Irregular heart rate detected",
+                    heart_rate=122,
+                    spo2=93,
+                    temperature=99.4,
+                    monitored_by="Staff Karthik",
+                    last_sync="16 Apr 2026, 08:45 AM",
+                ),
+                IotBandMonitor(
+                    patient_name="Kaviya Raj",
+                    band_code="IOT-KAV-1140",
+                    anomaly="No anomaly",
+                    heart_rate=82,
+                    spo2=98,
+                    temperature=98.4,
+                    monitored_by="Staff Karthik",
+                    last_sync="16 Apr 2026, 08:50 AM",
+                ),
+            ]
+        )
+
+    if InfantSecurity.query.count() == 0:
+        db.session.add_all(
+            [
+                InfantSecurity(
+                    infant_name="Baby Diya",
+                    mother_name="Meena S",
+                    pair_code="MOM-INF-9088",
+                    authorized_members="Mother, Dr. Sneha, Nurse Kavi",
+                    alarm_status="Protected",
+                    alert_targets="Reception, Doctor, Nurse",
+                    technical_team="Staff Karthik",
+                ),
+                InfantSecurity(
+                    infant_name="Baby Keshav",
+                    mother_name="Anu K",
+                    pair_code="MOM-INF-9011",
+                    authorized_members="Mother, NICU doctor, Assigned nurse",
+                    alarm_status="Band tamper alert test enabled",
+                    alert_targets="Reception, NICU Desk, Nurse Station",
+                    technical_team="Staff Karthik",
+                ),
+            ]
+        )
+
     db.session.commit()
 
 
 def get_admin_snapshot() -> dict:
+    if using_mysql:
+        try:
+            row = execute_proc_one("CALL GetAdminSummary()", {})
+            if row:
+                return {
+                    "patients": row.get("total_patients", 0),
+                    "doctors": row.get("total_doctors", 0),
+                    "staff": StaffUser.query.count(),
+                    "critical_alerts": row.get("critical_alerts", 0),
+                    "emergency_cases": Patient.query.filter_by(emergency_case=True).count(),
+                    "awaiting_restock": PharmacyStock.query.filter(
+                        PharmacyStock.approval_status != "Approved by Admin"
+                    ).count(),
+                }
+        except Exception:
+            db.session.rollback()
+
     return {
         "patients": Patient.query.count(),
         "doctors": Doctor.query.count(),
@@ -372,6 +445,28 @@ def staff_login():
         flash("Two-layer protection needs both password and security code.")
         return redirect(url_for("home"))
 
+    if using_mysql:
+        try:
+            proc_user = execute_proc_one(
+                """
+                CALL ValidateStaffLogin(
+                    :p_username,
+                    :p_password,
+                    :p_biothumb_id
+                )
+                """,
+                {
+                    "p_username": login_id,
+                    "p_password": layer_one,
+                    "p_biothumb_id": layer_two,
+                },
+            )
+            if not proc_user:
+                flash("Login ID not found.")
+                return redirect(url_for("home"))
+        except Exception:
+            db.session.rollback()
+
     user = StaffUser.query.filter_by(login_id=login_id).first()
     if user is None:
         flash("Login ID not found.")
@@ -389,6 +484,7 @@ def staff_login():
         or (role == "Pharmacy" and "Pharmacy" in user.department)
         or (role == "IoT" and user.department == "IT Support / AI")
     )
+
     if not role_valid:
         flash("This account is not allowed for the selected portal.")
         return redirect(url_for("home"))
@@ -401,6 +497,7 @@ def staff_login():
         "Pharmacy": "pharmacy_portal",
         "IoT": "iot_portal",
     }
+
     session["login_id"] = user.login_id
     flash(f"{role} login accepted for {user.full_name}.")
     return redirect(url_for(route_map[role]))
@@ -408,6 +505,47 @@ def staff_login():
 
 @app.route("/patient-register", methods=["POST"])
 def patient_register():
+    admitted_on = datetime.strptime(request.form["admitted_on"], "%Y-%m-%d").date()
+    emergency_case = request.form.get("emergency_case") == "yes"
+
+    if using_mysql:
+        try:
+            db.session.execute(
+                text(
+                    """
+                    CALL AddPatient(
+                        :p_full_name,
+                        :p_age,
+                        :p_gender,
+                        :p_phone,
+                        :p_condition,
+                        :p_ward,
+                        :p_admission_type,
+                        :p_registered_by,
+                        :p_emergency_case,
+                        :p_admitted_on
+                    )
+                    """
+                ),
+                {
+                    "p_full_name": request.form["full_name"],
+                    "p_age": int(request.form["age"]),
+                    "p_gender": request.form["gender"],
+                    "p_phone": request.form["phone"],
+                    "p_condition": request.form["condition"],
+                    "p_ward": request.form["ward"],
+                    "p_admission_type": request.form["admission_type"],
+                    "p_registered_by": request.form["registered_by"],
+                    "p_emergency_case": emergency_case,
+                    "p_admitted_on": admitted_on,
+                },
+            )
+            db.session.commit()
+            flash("Patient registration submitted successfully.")
+            return redirect(url_for("home"))
+        except Exception:
+            db.session.rollback()
+
     patient = Patient(
         full_name=request.form["full_name"],
         age=int(request.form["age"]),
@@ -417,8 +555,8 @@ def patient_register():
         ward=request.form["ward"],
         admission_type=request.form["admission_type"],
         registered_by=request.form["registered_by"],
-        emergency_case=request.form.get("emergency_case") == "yes",
-        admitted_on=datetime.strptime(request.form["admitted_on"], "%Y-%m-%d").date(),
+        emergency_case=emergency_case,
+        admitted_on=admitted_on,
     )
     db.session.add(patient)
     db.session.commit()
@@ -440,7 +578,13 @@ def admin_dashboard():
     )
 
 
-def render_role_portal(title: str, subtitle: str, highlight_label: str, highlight_value: str, sections: list[dict]):
+def render_role_portal(
+    title: str,
+    subtitle: str,
+    highlight_label: str,
+    highlight_value: str,
+    sections: list[dict],
+):
     return render_template(
         "role_portal.html",
         title=title,
@@ -530,7 +674,7 @@ def staff_portal():
         return redirect(url_for("pharmacy_portal"))
     elif department == "IT Support / AI":
         return redirect(url_for("iot_portal"))
-    elif department == "Receptionist" or department == "Reception/Triage":
+    elif department in {"Receptionist", "Reception/Triage"}:
         sections = [
             {
                 "title": "Recent Patient Registrations",
@@ -555,7 +699,7 @@ def staff_portal():
                     [w.patient_name, w.doctor_name, w.nurse_name, w.ward_name]
                     for w in WardAssignment.query.order_by(WardAssignment.ward_name).all()
                 ],
-            }
+            },
         ]
         subtitle = "Manage patient intake, emergency records, and view ward locations."
     elif department.startswith("Cleaning"):
@@ -576,7 +720,7 @@ def staff_portal():
                     [p.full_name, p.ward, p.admitted_on.strftime("%d %b %Y")]
                     for p in Patient.query.order_by(Patient.admitted_on.desc()).all()
                 ],
-            }
+            },
         ]
         subtitle = f"Cleaning schedules and occupied rooms for {assigned_ward}."
     elif department == "Billing Clerk":
@@ -596,7 +740,7 @@ def staff_portal():
                     [m.medicine_name, m.prescribed_to, m.prescribed_by]
                     for m in PharmacyStock.query.filter(PharmacyStock.prescribed_to != "None").all()
                 ],
-            }
+            },
         ]
         subtitle = "Patient and pharmacy details for preparing billing records."
     elif department == "Lab Technician":
@@ -616,7 +760,7 @@ def staff_portal():
                     [pr.patient_name, pr.doctor_name, pr.medicines]
                     for pr in Prescription.query.order_by(Prescription.prescribed_on.desc()).all()
                 ],
-            }
+            },
         ]
         subtitle = "Patient diagnostics and active prescriptions for lab coordination."
     elif department == "Security Head":
@@ -738,7 +882,6 @@ def staff_portal():
         ]
         subtitle = "Cafeteria planning view for inpatient meals and department support coverage."
     else:
-        # Default fallback for other staff
         sections = [
             {
                 "title": "Staff Directory",
@@ -827,8 +970,7 @@ def iot_portal():
 def setup_database() -> None:
     with app.app_context():
         db.create_all()
-        if not using_mysql:
-            seed_data()
+        seed_data()
 
 
 setup_database()
