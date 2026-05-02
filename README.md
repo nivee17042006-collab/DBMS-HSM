@@ -1,41 +1,85 @@
-SecureCare Hospital Management System
-This project is prepared for two uses:
+# Hospital Management System Using ER Diagram and Stored Procedure
 
-local opening on your own computer
-public deployment on the internet so it can open on any device
-Important
-If you want people to open this app from a browser search or from any device, it cannot stay only on your computer.
+This project is a web-based Hospital Management System developed using Flask and DBMS concepts. It is designed to manage hospital records such as patients, doctors, nurses, staff, pharmacy stock, IoT monitoring, and infant security details in a centralized system.
 
-It must be hosted online and given a public URL such as:
+## Project Aim
 
-https://your-app-name.onrender.com
+The aim of this project is to reduce manual hospital record handling and provide a secure and structured digital system. The project is based on ER diagram design and stored procedures for important database operations.
 
-After that, search engines can discover and index it, but indexing is not instant.
+## Main Modules
 
-Fastest way: publish online
-This folder is now prepared for deployment with Render.
+- Staff Login Module
+- Patient Registration Module
+- Admin Dashboard Module
+- Doctor Portal Module
+- Nurse Portal Module
+- Staff Portal Module
+- Pharmacy Portal Module
+- IoT and Infant Security Module
 
-Files added for deployment:
+## Technologies Used
 
-requirements.txt
-render.yaml
-Render steps
-Create a GitHub account if you do not already have one.
-Upload this project folder to a GitHub repository.
-Create a Render account.
-In Render, create a new Web Service from your GitHub repository.
-Render can use:
-Build Command: pip install -r requirements.txt
-Start Command: gunicorn app:app
-After deployment, Render gives you a public link.
-Open that link from any phone, laptop, or other device.
-Search engine visibility
-Publishing the app online does not mean it appears in Google immediately.
+- Python
+- Flask
+- Flask-SQLAlchemy
+- MySQL / SQLite
+- HTML
+- CSS
+- SQL Stored Procedures
 
-Google says it usually discovers websites automatically after they are published, and you can later request indexing in Google Search Console if needed.
+## Database Design
 
-Local use
-If you still want local use for testing:
+The database is designed using ER diagram concepts. It contains tables for:
 
+- Users
+- Access Layers
+- Doctors
+- Patients
+- Ward Assignments
+- Prescriptions
+- Pharmacy Stock
+- IoT Band Monitor
+- Infant Security
+
+## Stored Procedures
+
+The project includes stored procedures for important operations such as:
+
+- `AddPatient()`
+- `GetPatientDetails()`
+- `ValidateStaffLogin()`
+- `GetDoctorPatients()`
+- `GetNursePatientDetails()`
+- `UpdatePharmacyStock()`
+- `GetIotAlerts()`
+- `GetAdminSummary()`
+
+These procedures improve database organization, reduce repeated query logic, and support the project topic technically.
+
+## How the Application Works
+
+- Staff can log in using role, login ID, password, and BioThumb ID
+- Patients can be registered through the registration form
+- Admin can monitor hospital summary details
+- Doctors and nurses can view patient and prescription information
+- Pharmacy staff can manage medicine stock
+- IoT and infant security modules show monitoring and alert details
+
+## Deployment
+
+This project can be deployed on Render.
+
+### Required files
+
+- `app.py`
+- `requirements.txt`
+- `render.yaml`
+- `hms_batch4_dataset.sql`
+- `templates` folder
+- `static` folder
+
+### Render configuration
+
+Build Command:
+```text
 pip install -r requirements.txt
-python app.py
