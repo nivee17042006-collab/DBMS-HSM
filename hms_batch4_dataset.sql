@@ -179,3 +179,98 @@ INSERT INTO iot_band_monitor (patient_name, band_code, anomaly, heart_rate, spo2
 INSERT INTO infant_security (infant_name, mother_name, pair_code, authorized_members, alarm_status, alert_targets, technical_team) VALUES
 ('Baby Diya', 'Meena S', 'MOM-INF-9088', 'Mother, Dr. Sneha, Nurse Kavi', 'Protected', 'Reception, Doctor, Nurse', 'Staff Karthik'),
 ('Baby Keshav', 'Anu K', 'MOM-INF-9011', 'Mother, NICU doctor, Assigned nurse', 'Band tamper alert test enabled', 'Reception, NICU Desk, Nurse Station', 'Staff Karthik');
+
+DELIMITER $$
+
+CREATE PROCEDURE AddPatient(
+    IN p_full_name VARCHAR(120),
+    IN p_age INT,
+    IN p_gender VARCHAR(20),
+    IN p_phone VARCHAR(20),
+    IN p_condition VARCHAR(150),
+    IN p_ward VARCHAR(100),
+    IN p_admission_type VARCHAR(50),
+    IN p_registered_by VARCHAR(50),
+    IN p_emergency_case BOOLEAN,
+    IN p_admitted_on DATE
+)
+BEGIN
+    INSERT INTO patients (
+        full_name, age, gender, phone, patient_condition, ward,
+        admission_type, registered_by, emergency_case, admitted_on
+    )
+    VALUES (
+        p_full_name, p_age, p_gender, p_phone, p_condition, p_ward,
+        p_admission_type, p_registered_by, p_emergency_case, p_admitted_on
+    );
+END $$
+
+CREATE PROCEDURE GetPatientDetails()
+BEGIN
+    SELECT * FROM patients;
+END $$
+
+CREATE PROCEDURE ValidateStaffLogin(
+    IN p_username VARCHAR(100),
+    IN p_password VARCHAR(100),
+    IN p_biothumb_id VARCHAR(100)
+)
+BEGIN
+    SELECT u.username, u.role, a.department
+    FROM users u
+    JOIN access_layers a ON u.username = a.username
+    WHERE u.username = p_username
+      AND u.password = p_password
+      AND a.biothumb_id = p_biothumb_id;
+END $$
+
+CREATE PROCEDURE GetDoctorPatients()
+BEGIN
+    SELECT full_name, patient_condition, ward, registered_by
+    FROM patients;
+END $$
+
+CREATE PROCEDURE GetNursePatientDetails()
+BEGIN
+    SELECT full_name, age, patient_condition, ward, emergency_case
+    FROM patients;
+END $$
+
+CREATE PROCEDURE UpdatePharmacyStock(
+    IN p_medicine_name VARCHAR(120),
+    IN p_stock_in INT,
+    IN p_stock_out INT,
+    IN p_balance_units INT,
+    IN p_prescribed_to VARCHAR(120),
+    IN p_prescribed_by VARCHAR(120),
+    IN p_approval_status VARCHAR(80),
+    IN p_order_status VARCHAR(80)
+)
+BEGIN
+    INSERT INTO pharmacy_stock (
+        medicine_name, stock_in, stock_out, balance_units,
+        prescribed_to, prescribed_by, approval_status, order_status
+    )
+    VALUES (
+        p_medicine_name, p_stock_in, p_stock_out, p_balance_units,
+        p_prescribed_to, p_prescribed_by, p_approval_status, p_order_status
+    );
+END $$
+
+CREATE PROCEDURE GetIotAlerts()
+BEGIN
+    SELECT patient_name, band_code, anomaly, heart_rate, spo2, temperature
+    FROM iot_band_monitor
+    WHERE anomaly <> 'No anomaly';
+END $$
+
+CREATE PROCEDURE GetAdminSummary()
+BEGIN
+    SELECT
+        (SELECT COUNT(*) FROM patients) AS total_patients,
+        (SELECT COUNT(*) FROM doctors) AS total_doctors,
+        (SELECT COUNT(*) FROM users) AS total_users,
+        (SELECT COUNT(*) FROM iot_band_monitor WHERE anomaly <> 'No anomaly') AS critical_alerts;
+END $$
+
+DELIMITER ;
